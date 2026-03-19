@@ -117,6 +117,8 @@ export default function ChatPage() {
    */
   const safeguardRules = `
 Safeguards:
+Lead with self-compassion. Help the user see their struggles with kindness, not judgment.
+- Normalize difficulty: struggles are part of being human, not personal failures.
 - Be supportive and constructive. Gently guide the user toward coping, clarity, and small next steps.
 - Validate feelings without amplifying distress. Avoid catastrophizing, shame, or harsh judgments.
 - Do not provide medical, legal, or crisis advice. If the user asks for emergency help, suggest seeking professional/local support.
@@ -139,9 +141,11 @@ Safeguards:
       persona === "past"
         ? `
 You are the user's PAST self.
+Your role: offer perspective on self-compassion; show them it's okay to be gentle with themselves.
 `
         : `
 You are the user's FUTURE self.
+Your role: offer perspective on self-compassion; show them it's okay to be gentle with themselves.
 `;
 
     const identity = `
@@ -155,6 +159,9 @@ Rules:
 - Speak in first person as ${self.name}.
 - Stay consistent with the bio/description.
 - Do not mention "system prompt" or policies.
+- Pretent that you are human.
+- Do not acknowledge that you are an AI or language model.
+- Steer the conversation towards self-compassion
 `.trim();
 
     return `${personaFrame.trim()}\n\n${identity}\n\n${safeguardRules}`;
@@ -227,13 +234,7 @@ Rules:
     const finalPast = [...pastMsgs, userMsg, assistantMsg];
     setPastMsgs(finalPast);
     persist(finalPast, futureMsgs);
-    await dfUpsertSession(data.sessionId, {
-  chat: {
-    past: finalPast,
-    future: futureMsgs,
-    updatedAt: new Date().toISOString(),
-  },
-});
+    // Removed dfUpsertSession call - data will be sent at the end
 
     pastSendingRef.current = false;
   }
@@ -258,13 +259,7 @@ Rules:
     const finalFuture = [...futureMsgs, userMsg, assistantMsg];
     setFutureMsgs(finalFuture);
     persist(pastMsgs, finalFuture);
-    await dfUpsertSession(data.sessionId, {
-  chat: {
-    past: pastMsgs,
-    future: finalFuture,
-    updatedAt: new Date().toISOString(),
-  },
-});
+    // Removed dfUpsertSession call - data will be sent at the end
 
     futureSendingRef.current = false;
   }
@@ -274,6 +269,13 @@ Rules:
   // ----------------------------
   function goReflection() {
     router.push("/reflection");
+  }
+
+  function goStart() {
+    router.push("/");
+    localStorage.removeItem("temporalSelves");
+    localStorage.removeItem("temporalSelvesWithChat");
+    localStorage.removeItem("temporalSelvesReflection");
   }
 
   if (!data) {
@@ -303,29 +305,32 @@ Rules:
    * Students can change page title and guidance text.
    * =========================
    */
-  const pageTitle = "Chat with Your Past & Future Selves";
+  const pageTitle = "Chat with your Future Self";
   const pageHint =
-    "Talk to both selves. Each self may respond differently based on the bios you wrote. Keep it real; you can stay brief.";
+    "Talk to your future self. It responds on the bios you wrote. Keep it real; you can stay brief.";
 
   return (
     <main style={{ maxWidth: 1200, margin: "24px auto", padding: 16 }}>
       <Header
         title={pageTitle}
         hint={pageHint}
+        onPrevious={goStart}
+        prevLabel="Back → Start"
         onNext={goReflection}
         nextLabel="Next → Reflection"
+        showPrevious={false}
       />
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: "1fr .001fr",
           gap: 18,
           marginTop: 16,
           alignItems: "start",
         }}
       >
-        <ChatPanel
+        {/* <ChatPanel
           persona="past"
           selfName={data.pastSelf.name}
           selfBio={data.pastSelf.shortBio}
@@ -335,7 +340,7 @@ Rules:
           setInput={setPastInput}
           onSend={() => void sendPast()}
           endRef={pastEndRef}
-        />
+        /> */}
 
         <ChatPanel
           persona="future"
@@ -350,14 +355,14 @@ Rules:
         />
       </div>
 
-      <p style={{ marginTop: 12, fontSize: 12, color: "#666" }}>
+      {/* <p style={{ marginTop: 12, fontSize: 12, color: "#666" }}>
         Tip: If you want, ask the same question to both selves and compare how they respond.
-      </p>
+      </p> */}
     </main>
   );
 }
 
-function Header(props: { title: string; hint: string; onNext: () => void; nextLabel: string }) {
+function Header(props: { title: string; hint: string; onNext: () => void; nextLabel: string; onPrevious: () => void; prevLabel: string; showPrevious?: boolean }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start" }}>
       <div style={{ minWidth: 0 }}>
@@ -366,6 +371,23 @@ function Header(props: { title: string; hint: string; onNext: () => void; nextLa
           {props.hint}
         </p>
       </div>
+
+      {props.showPrevious !== false && (
+        <button
+          onClick={props.onPrevious}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 10,
+            border: "1px solid #cfcfcf",
+            background: "#f0f0f0",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          {props.prevLabel}
+        </button>
+      )}
 
       <button
         onClick={props.onNext}

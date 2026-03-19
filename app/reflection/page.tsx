@@ -4,6 +4,23 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { dfUpsertSession } from "@/lib/dfClient";
 
+type Stored = {
+  sessionId: string;
+  createdAt: string;
+  pastSelf: { name: string; age?: number | ""; shortBio: string; description?: string };
+  futureSelf: { name: string; age?: number | ""; shortBio: string; description?: string };
+};
+
+function loadJson<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
 type Msg = {
   role: "user" | "assistant";
   content: string;
@@ -55,32 +72,32 @@ export default function ReflectionPage() {
    */
   const questions: { key: string; label: string; hint?: string }[] = [
     {
-      key: "difference",
+      key: "feel",
       label:
-        "How did the past self and future self differ in how they responded to you?",
-      hint: "Consider tone, focus, assumptions, or what each self emphasized.",
+        "How did dit feel to talk to your future self?",
+      // hint: "Consider tone, focus, assumptions, or what each self emphasized.",
     },
     {
-      key: "surprise",
+      key: "concern",
       label:
-        "Was there anything that surprised you in either conversation?",
-      hint: "This could be something you did not expect yourself to say or hear.",
+        "Did the conversation change the way you think about your concern? If yes, how?",
+      // hint: "This could be something you did not expect yourself to say or hear.",
     },
     {
-      key: "alignment",
+      key: "self_compassion",
       label:
-        "Which response felt more aligned with how you see yourself right now? Why?",
+        "Did you experience any moments of self-compassion or understanding toward yourself during the interaction?",
     },
     {
-      key: "insight",
+      key: "impactful",
       label:
-        "Did these conversations change how you understand your situation or yourself?",
+        "Which parts of the chatbot interaction felt most meaningful or impactful?",
     },
     {
       key: "nextStep",
       label:
-        "After talking to both selves, what feels like a reasonable next step?",
-      hint: "This does not have to be big or definitive.",
+        "Was there anything about the chatbot or conversation that felt confusing, unrealistic, or unhelpful?",
+      // hint: "This does not have to be big or definitive.",
     },
   ];
 
@@ -105,13 +122,32 @@ export default function ReflectionPage() {
      * Students may redirect to a thank-you page or external survey here.
      * =========================
      */
+
+    // Load all data and send complete session to datafoundry
+    const customization = loadJson<Stored>("temporalSelves");
+    const chatData = loadJson<any>("temporalSelvesWithChat");
+
     await dfUpsertSession(data?.sessionId || "unknown", {
-  reflection: {
-    answers,
-    finishedAt: new Date().toISOString(),
-  },
-});
-    alert("Thank you for your reflection.");
+      sessionId: data?.sessionId,
+      createdAt: customization?.createdAt,
+      customization: {
+        pastSelf: customization?.pastSelf,
+        futureSelf: customization?.futureSelf,
+      },
+      chat: chatData?.chat,
+      reflection: {
+        answers,
+        finishedAt: new Date().toISOString(),
+      },
+    });
+
+    // Clear all stored data for the next user
+    localStorage.removeItem("sessionId");
+    localStorage.removeItem("temporalSelves");
+    localStorage.removeItem("temporalSelvesWithChat");
+    localStorage.removeItem("temporalSelvesReflection");
+
+    alert("Thank you for your time, enjoy your day.");
     router.push("/");
   }
 
@@ -120,18 +156,38 @@ export default function ReflectionPage() {
       <main style={{ maxWidth: 900, margin: "40px auto", padding: 16 }}>
         <h1>Reflection</h1>
         <p>No chat data found. Please complete the chat first.</p>
-        <button
-          onClick={() => router.push("/")}
-          style={{
-            padding: "10px 14px",
-            borderRadius: 8,
-            border: "1px solid #cfcfcf",
-            background: "#f0f0f0",
-            cursor: "pointer",
-          }}
-        >
-          Back to Start
-        </button>
+        <div style={{ display: "flex", gap: 20 }}>
+          <button
+            onClick={() => {
+              localStorage.removeItem("temporalSelves");
+              localStorage.removeItem("temporalSelvesWithChat");
+              localStorage.removeItem("temporalSelvesReflection");
+              router.push("/");
+            }}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "1px solid #cfcfcf",
+              background: "#f0f0f0",
+              cursor: "pointer",
+            }}
+          >
+            Back to Start
+          </button>
+          <button
+            onClick={() => router.push("/chat")}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "1px solid #cfcfcf",
+              background: "#f0f0f0",
+              cursor: "pointer",
+            }}
+          >
+            Back to Chat
+          </button>
+        </div>
+        
       </main>
     );
   }
@@ -145,9 +201,8 @@ export default function ReflectionPage() {
        */}
       <h1 style={{ marginTop: 0 }}>Reflection</h1>
       <p style={{ maxWidth: 720, color: "#444", lineHeight: 1.5 }}>
-        You have now spoken with both your past self and your future self.
-        Take a moment to reflect on how these conversations differed and what
-        they revealed.
+        You have now spoken with your future self.
+        Take a moment to reflect on this conversation.
       </p>
 
       {/* Context summary */}
@@ -163,9 +218,9 @@ export default function ReflectionPage() {
         <div style={{ fontSize: 14, fontWeight: 600 }}>Conversation context</div>
 
         <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.45 }}>
-          <div>
+          {/* <div>
             <b>Past self:</b> {data.pastSelf.name} — {data.pastSelf.shortBio}
-          </div>
+          </div> */}
           <div style={{ marginTop: 6 }}>
             <b>Future self:</b> {data.futureSelf.name} —{" "}
             {data.futureSelf.shortBio}

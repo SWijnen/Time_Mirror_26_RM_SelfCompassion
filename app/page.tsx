@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { dfUpsertSession } from "@/lib/dfClient";
 /**
  * =========================
@@ -64,14 +64,7 @@ export default function CustomizePage() {
         futureSelf: future,
       })
     );
-    await dfUpsertSession(sessionId, {
-      sessionId,
-      createdAt: new Date().toISOString(),
-      customization: {
-        pastSelf: past,
-        futureSelf: future,
-      },
-    });
+    // Removed dfUpsertSession call - data will be sent at the end
 
     router.push("/chat");
   }
@@ -155,6 +148,28 @@ function TemporalSelfCard(props: {
 }) {
   const { title, hint, value, onChange } = props;
 
+  const isFuture = title === "Future Self";
+
+  const questions = isFuture ? [
+    "Briefly describe who you are 5-10 years from now.",
+    "What experiences or lessons do you think your future self has gained since now?",
+    "What kind of advice or attitude do you think your future self would have toward your current worries?",
+    "What is one educational worry or challenge you are currently facing that you would like to discuss with your future self?"
+  ] : [
+    "Briefly describe who you were 5-10 years before now.",
+    "What experiences or lessons did you gaine since then?",
+    "What kind of advice or attitude do you think give past self would have toward your current worries?",
+    "What is one educational worry or challenge you are currently facing that you would like to discuss with your past self?"
+  ];
+
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const bio = Object.values(answers).filter(a => a.trim()).join('. ');
+    onChange({ ...value, shortBio: bio });
+  }, [answers, onChange]);
+
+
   const inputStyle: React.CSSProperties = {
     width: "100%",
     boxSizing: "border-box", // ✅ prevents overflowing the card
@@ -213,7 +228,7 @@ function TemporalSelfCard(props: {
           type="number"
           style={inputStyle}
           value={value.age}
-          placeholder="e.g., 45"
+          placeholder="Your age, with a 5-10 years age difference"
           onChange={(e) =>
             onChange({
               ...value,
@@ -224,6 +239,26 @@ function TemporalSelfCard(props: {
       </div>
 
       <div style={{ marginTop: 14 }}>
+        <div style={labelStyle}>Profile details (required)</div>
+        <div style={{ marginBottom: 20 }}>
+          <div style={helpStyle}>
+            These details will be combined to create the short bio that shapes the persona of the assistant you will talk to.
+          </div>
+        </div>
+        {questions.map((q, i) => (
+          <div key={i} style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 12, marginBottom: 4, color: "#555" }}>{q}</div>
+            <input
+              style={inputStyle}
+              value={answers[`q${i}`] || ""}
+              placeholder="Your answer here..."
+              onChange={(e) => setAnswers(prev => ({ ...prev, [`q${i}`]: e.target.value }))}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* <div style={{ marginTop: 14 }}>
         <div style={labelStyle}>Short bio (required)</div>
         <input
           style={inputStyle}
@@ -234,7 +269,7 @@ function TemporalSelfCard(props: {
         <div style={helpStyle}>
           The short bio directly shapes the persona of the assistant you will talk to.
         </div>
-      </div>
+      </div> */}
 
       <div style={{ marginTop: 14 }}>
         <div style={labelStyle}>Description (optional)</div>
